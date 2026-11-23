@@ -1,69 +1,214 @@
-import Image from "next/image";
+
+"use client";
+
+import { useRef, useState } from "react";
+
+type Reference = {
+  id: string;
+  url: string;
+  name: string;
+};
 
 export default function Home() {
+  const [mode, setMode] = useState("auto");
+  const [images, setImages] = useState<Reference[]>([]);
+  const [prompt, setPrompt] = useState("");
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  function uploadFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+
+    const selected = Array.from(files).filter((file) => {
+      return (
+        file.type.startsWith("image/") ||
+        /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(file.name)
+      );
+    });
+
+    setImages((prev) => {
+      const available = 5 - prev.length;
+
+      const newImages = selected.slice(0, available).map((file) => ({
+        id: crypto.randomUUID(),
+        url: URL.createObjectURL(file),
+        name: file.name,
+      }));
+
+      return [...prev, ...newImages];
+    });
+
+    if (fileInput.current) {
+      fileInput.current.value = "";
+    }
+  }
+
+  function removeImage(id: string) {
+    setImages((prev) => {
+      const image = prev.find((item) => item.id === id);
+      if (image) URL.revokeObjectURL(image.url);
+      return prev.filter((item) => item.id !== id);
+    });
+  }
+
+  function moveImage(index: number, direction: number) {
+    const next = [...images];
+    const target = index + direction;
+
+    if (target < 0 || target >= next.length) return;
+
+    [next[index], next[target]] = [next[target], next[index]];
+    setImages(next);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-[#090909] text-white">
+      <nav className="flex justify-between border-b border-white/10 px-8 py-6">
+        <h1 className="text-xl font-bold tracking-[0.25em]">INK AI.</h1>
+        <span className="text-xs tracking-widest text-zinc-500">
+          TATTOO GENERATOR
+        </span>
+      </nav>
+
+      <section className="mx-auto max-w-4xl px-6 py-16">
+        <p className="mb-4 text-xs tracking-[0.4em] text-zinc-500">
+          YOUR IDEA. YOUR DESIGN.
+        </p>
+
+        <h2 className="text-5xl font-bold md:text-7xl">
+          Создай свою
+          <br />
+          <span className="text-zinc-500">татуировку.</span>
+        </h2>
+
+        <p className="mt-6 text-zinc-400">
+          Превращай свои идеи в уникальные тату-эскизы
+          с помощью искусственного интеллекта.
+        </p>
+
+        <div className="mt-12 flex gap-3">
+          <button
+            onClick={() => setMode("auto")}
+            className={`flex-1 rounded-xl border p-4 ${
+              mode === "auto"
+                ? "border-white bg-white text-black"
+                : "border-white/15"
+            }`}
+          >
+            AUTO MODE
+            <span className="mt-2 block text-xs opacity-60">
+              ИИ решает сам
+            </span>
+          </button>
+
+          <button
+            onClick={() => setMode("custom")}
+            className={`flex-1 rounded-xl border p-4 ${
+              mode === "custom"
+                ? "border-white bg-white text-black"
+                : "border-white/15"
+            }`}
+          >
+            CUSTOM MODE
+            <span className="mt-2 block text-xs opacity-60">
+              Твои инструкции
+            </span>
+          </button>
+        </div>
+
+        <div className="mt-8 rounded-2xl border border-dashed border-white/20 p-8 text-center">
+          <div className="mb-4 text-4xl">＋</div>
+          <h3>Загрузи свои референсы</h3>
+          <p className="mt-2 text-sm text-zinc-500">
+            До 5 изображений · PNG, JPG, WEBP
+          </p>
+
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*,.heic,.heif"
+            multiple
+            className="hidden"
+            onChange={(event) => uploadFiles(event.target.files)}
+          />
+
+          <button
+            disabled={images.length >= 5}
+            onClick={() => fileInput.current?.click()}
+            className="mt-6 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black disabled:opacity-40"
+          >
+            Выбрать фотографии
+          </button>
+
+          <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {images.map((image, index) => (
+              <div key={image.id} className="text-left">
+                <img
+                  src={image.url}
+                  alt={image.name}
+                  className="aspect-square w-full rounded-xl object-cover"
+                />
+
+                <p className="mt-2 truncate text-xs text-zinc-400">
+                  {image.name}
+                </p>
+
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={() => moveImage(index, -1)}
+                    disabled={index === 0}
+                    className="rounded-lg border border-white/20 px-3 py-2 disabled:opacity-20"
+                  >
+                    ←
+                  </button>
+
+                  <button
+                    onClick={() => moveImage(index, 1)}
+                    disabled={index === images.length - 1}
+                    className="rounded-lg border border-white/20 px-3 py-2 disabled:opacity-20"
+                  >
+                    →
+                  </button>
+
+                  <button
+                    onClick={() => removeImage(image.id)}
+                    className="ml-auto rounded-lg border border-red-500/40 px-3 py-2 text-red-400"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-5 text-xs text-zinc-500">
+            Загружено: {images.length} / 5
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="mt-6">
+          <label className="mb-3 block text-sm text-zinc-400">
+            Опиши свою идею
+          </label>
+
+          <textarea
+            value={prompt}
+            onChange={(event) => setPrompt(event.target.value)}
+            placeholder={
+              mode === "auto"
+                ? "Опиши желаемый результат..."
+                : "Укажи, какие элементы взять из каждого фото..."
+            }
+            className="min-h-32 w-full rounded-xl border border-white/15 bg-[#111] p-5 text-sm outline-none focus:border-white/50"
+          />
         </div>
-      </main>
-    </div>
+
+        <button
+          disabled
+          className="mt-6 w-full rounded-xl bg-white/20 py-5 font-semibold text-white/50"
+        >
+          AI GENERATION — СКОРО
+        </button>
+      </section>
+    </main>
   );
 }
